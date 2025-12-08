@@ -8,7 +8,7 @@ const generateAccessToken = (payload) => {
   });
 };
 
-const wgenerateRefreshToken = async (
+const generateRefreshToken = async (
   user,
   userAgent = null,
   ipAddress = null
