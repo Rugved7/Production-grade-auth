@@ -1,34 +1,44 @@
-require('dotenv').config()
+/**
+ * Environment Configuration Module
+ * Centralizes all environment variables with validation
+ */
 
-const requiredEnvVariables = [
-    'MONGODB_URI', 
-    'JWT_ACCESS_TOKEN', 
-    'JWT_REFRESH_TOKEN',    
-]
+require('dotenv').config();
 
-requiredEnvVariables.forof((envVar) => {
-    if(!process.env[envVar]){
-        throw new Error(`Missing required env variables, ${envVar}`)
-    }
-})
+// Validate required environment variables
+const requiredEnvVars = [
+  'MONGODB_URI',
+  'JWT_ACCESS_SECRET',
+  'JWT_REFRESH_SECRET'
+];
+
+requiredEnvVars.forEach((envVar) => {
+  if (!process.env[envVar]) {
+    throw new Error(`Missing required environment variable: ${envVar}`);
+  }
+});
 
 module.exports = {
-    NODE_ENV: process.env.NODE_ENV || 'development', 
-    PORT: process.env.PORT || 5000, 
+  // Server configuration
+  NODE_ENV: process.env.NODE_ENV || 'development',
+  PORT: process.env.PORT || 5000,
 
-    MONGODB_URI: process.env.MONGODB_URI, 
+  // Database configuration
+  MONGODB_URI: process.env.MONGODB_URI,
 
-    JWT : {
-        ACCESS_TOKEN: process.env.ACCESS_TOKEN, 
-        REFRESH_TOKEN: process.env.REFRESH_TOKEN, 
-        ACCESS_TOKEN_EXPIRY: process.env.ACCESS_TOKEN_EXPIRY || '15m', 
-        REFRESH_TOKEN_EXPIRY: process.env.REFRESH_TOKEN_EXPIRY || '7d'
-    }, 
+  // JWT configuration
+  JWT: {
+    ACCESS_SECRET: process.env.JWT_ACCESS_SECRET,
+    REFRESH_SECRET: process.env.JWT_REFRESH_SECRET,
+    ACCESS_EXPIRY: process.env.JWT_ACCESS_EXPIRY || '15m',
+    REFRESH_EXPIRY: process.env.JWT_REFRESH_EXPIRY || '7d'
+  },
 
-    COOKIE: {
-        SECURE: process.env.COOKIE_SECURE === 'true', 
-        SAME_SITE: process.env.COOKIE_SAME_SITE || 'strict', 
-        HTTP_ONLY: true, 
-        MAX_AGE: 7 * 24 * 60 * 60* 1000
-    }
-}
+  // Cookie configuration
+  COOKIE: {
+    SECURE: process.env.COOKIE_SECURE === 'true',
+    SAME_SITE: process.env.COOKIE_SAME_SITE || 'strict',
+    HTTP_ONLY: true,
+    MAX_AGE: 7 * 24 * 60 * 60 * 1000 // 7 days in milliseconds
+  }
+};

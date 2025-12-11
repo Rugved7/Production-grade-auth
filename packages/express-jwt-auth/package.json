@@ -1,0 +1,12 @@
+{
+  "name": "@rugved__03/express-jwt-auth",
+  "version": "1.0.0",
+  "description": "Reusable Express JWT authentication middleware and token utilities",
+  "main": "src/index.js",
+  "keywords": ["jwt", "express", "auth", "middleware"],
+  "author": "Rugved Agasti",
+  "license": "MIT",
+  "dependencies": {
+    "jsonwebtoken": "^9.0.0"
+  }
+}

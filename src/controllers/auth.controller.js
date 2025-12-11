@@ -1,137 +1,158 @@
-const User = require("../model/User.model");
-const RefreshToekn = require("../model/RefreshToken.model");
+
+const User = require('../model/User.model');
+const RefreshToken = require('../model/RefreshToken.model');
 const {
   generateAccessToken,
   generateRefreshToken,
-  revokeAllUserTokens,
-  revokeRefreshToken,
   verifyRefreshToken,
-} = require("../utils/tokenUtils");
-const { ApiError, asyncHandler } = require("../utils/errorHandler");
-const config = require("../config/env");
+  revokeRefreshToken,
+  revokeAllUserTokens
+} = require('../utils/tokenUtils');
+const { ApiError, asyncHandler } = require('../utils/errorHandler');
+const config = require('../config/env');
 
-// Signup Endpoint
 const signup = asyncHandler(async (req, res) => {
   const { email, password, name } = req.body;
 
-  const existsUser = await User.findOne({ email });
-  if (existsUser) {
-    throw new ApiError(409, "Email is in use");
+  // Check if user already exists
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    throw new ApiError(409, 'Email already registered');
   }
 
+  // Create new user (password will be hashed by pre-save middleware)
   const user = await User.create({
     email,
     password,
-    name,
+    name
   });
 
+  // Generate tokens
   const accessToken = generateAccessToken({
     userId: user._id,
-    email: user.email,
+    email: user.email
   });
 
   const refreshToken = await generateRefreshToken(
     user,
-    req.headers["user-agent"],
+    req.headers['user-agent'],
     req.ip
   );
 
-  res.cookie("refreshToken", refreshToken, {
+  // Set refresh token in HTTP-only cookie
+  res.cookie('refreshToken', refreshToken, {
     httpOnly: config.COOKIE.HTTP_ONLY,
-    secure: config.COOKIE.SECURE,
+    secure: config.COOKIE.SECURE, // true in production with HTTPS
     sameSite: config.COOKIE.SAME_SITE,
-    maxAge: config.COOKIE.MAX_AGE,
+    maxAge: config.COOKIE.MAX_AGE
   });
 
-  res.send(201).json({
+  // Send response
+  res.status(201).json({
     success: true,
-    message: "User Registered Successfully",
+    message: 'User registered successfully',
     data: {
       user: {
         id: user._id,
         email: user.email,
         name: user.name,
-        createdAt: user.createdAt,
+        createdAt: user.createdAt
       },
-      accessToken,
-    },
+      accessToken
+    }
   });
 });
 
-// Login Endpoint
 const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
-  const user = await User.findOne({ email }).select("+password");
+  // Find user and explicitly include password field
+  const user = await User.findOne({ email }).select('+password');
+
+  // Check if user exists
   if (!user) {
-    throw new ApiError(401, "Invalid credentials entered");
-  }
-  if (!user.isActive) {
-    throw new ApiError(403, "User's account is deactivated");
+    throw new ApiError(401, 'Invalid email or password');
   }
 
+  // Check if user is active
+  if (!user.isActive) {
+    throw new ApiError(403, 'Account is deactivated');
+  }
+
+  // Verify password
   const isPasswordValid = await user.comparePassword(password);
   if (!isPasswordValid) {
-    throw new ApiError(401, "Invalid email or password");
+    throw new ApiError(401, 'Invalid email or password');
   }
+
+  // Generate tokens
+  const accessToken = generateAccessToken({
+    userId: user._id,
+    email: user.email
+  });
 
   const refreshToken = await generateRefreshToken(
     user,
-    req.headers["user-agent"],
+    req.headers['user-agent'],
     req.ip
   );
 
-  res.cookie("refreshToken", refreshToken, {
+  // Set refresh token in HTTP-only cookie
+  res.cookie('refreshToken', refreshToken, {
     httpOnly: config.COOKIE.HTTP_ONLY,
     secure: config.COOKIE.SECURE,
     sameSite: config.COOKIE.SAME_SITE,
-    maxAge: config.COOKIE.MAX_AGE,
+    maxAge: config.COOKIE.MAX_AGE
   });
 
+  // Send response
   res.status(200).json({
     success: true,
-    message: "Login Successful",
+    message: 'Login successful',
     data: {
       user: {
         id: user._id,
         email: user.email,
-        name: user.name,
+        name: user.name
       },
-      accessToken,
-    },
+      accessToken
+    }
   });
 });
 
-// Refresh-AccessToken
+
 const refreshAccessToken = asyncHandler(async (req, res) => {
+  // Get refresh token from cookie
   const { refreshToken } = req.cookies;
 
   if (!refreshToken) {
-    throw new ApiError(401, "Refresh Token not found");
+    throw new ApiError(401, 'Refresh token not found');
   }
 
+  // Verify refresh token signature
   const decoded = verifyRefreshToken(refreshToken);
 
+  // Check if token exists in database and is valid
   const tokenDoc = await RefreshToken.findValidToken(refreshToken);
   if (!tokenDoc) {
-    throw new ApiError(401, "Invalid or expired refresh token");
+    throw new ApiError(401, 'Invalid or expired refresh token');
   }
 
+  // Generate new access token
   const newAccessToken = generateAccessToken({
     userId: decoded.userId,
-    email: tokenDoc.userId.email,
+    email: tokenDoc.userId.email
   });
 
   res.status(200).json({
     success: true,
-    message: "Access token refreshed successfully",
+    message: 'Access token refreshed successfully',
     data: {
-      accessToken: newAccessToken,
-    },
+      accessToken: newAccessToken
+    }
   });
 });
 
-// Logout Endpoint
 const logout = asyncHandler(async (req, res) => {
   const { refreshToken } = req.cookies;
 
@@ -153,11 +174,7 @@ const logout = asyncHandler(async (req, res) => {
   });
 });
 
-/**
- * @route   POST /api/auth/logout-all
- * @desc    Logout user from all devices
- * @access  Protected (requires valid access token)
- */
+
 const logoutAll = asyncHandler(async (req, res) => {
   // Revoke all refresh tokens for the user
   await revokeAllUserTokens(req.user._id);
@@ -174,7 +191,6 @@ const logoutAll = asyncHandler(async (req, res) => {
     message: 'Logged out from all devices successfully'
   });
 });
-
 
 const getCurrentUser = asyncHandler(async (req, res) => {
   res.status(200).json({

@@ -1,74 +1,84 @@
-const jwt = require("jsonwebtoken");
-const config = require("../config/env");
-const RefershToken = require("../model/RefreshToken.model");
+
+
+const jwt = require('jsonwebtoken');
+const config = require('../config/env');
+const RefreshToken = require('../model/RefreshToken.model');
+
 
 const generateAccessToken = (payload) => {
-  return jwt.sign(payload, config.JWT.ACCESS_TOKEN, {
-    expiresIn: config.JWT.ACCESS_TOKEN_EXPIRY,
+  return jwt.sign(payload, config.JWT.ACCESS_SECRET, {
+    expiresIn: config.JWT.ACCESS_EXPIRY
   });
 };
 
-const generateRefreshToken = async (
-  user,
-  userAgent = null,
-  ipAddress = null
-) => {
+
+const generateRefreshToken = async (user, userAgent = null, ipAddress = null) => {
   const payload = {
     userId: user._id,
-    tokenType: "refresh",
+    tokenType: 'refresh'
   };
- 
-  const token = jwt.sign(payload, config.JWT.REFRESH_TOKEN, {
-    expiresIn: config.JWT.REFRESH_TOKEN_EXPIRY,
+
+  const token = jwt.sign(payload, config.JWT.REFRESH_SECRET, {
+    expiresIn: config.JWT.REFRESH_EXPIRY
   });
 
-  await RefershToken.create({
+  // Calculate expiry date (7 days from now)
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 7);
+
+  // Store refresh token in database
+  await RefreshToken.create({
     token,
     userId: user._id,
     expiresAt,
     userAgent,
-    ipAddress,
+    ipAddress
   });
+
   return token;
 };
 
+
 const verifyAccessToken = (token) => {
   try {
-    return jwt.verify(token, config.JWT.ACCESS_TOKEN);
+    return jwt.verify(token, config.JWT.ACCESS_SECRET);
   } catch (error) {
-    if (error.name === "TokenExpiredError") {
-      throw new Error("Access token expired");
+    if (error.name === 'TokenExpiredError') {
+      throw new Error('Access token expired');
     }
-    if (error.name === "JsonWebTokenError") {
-      throw new Error("Invalid access token");
+    if (error.name === 'JsonWebTokenError') {
+      throw new Error('Invalid access token');
     }
     throw error;
   }
 };
+
 
 const verifyRefreshToken = (token) => {
   try {
-    return jwt.verify(token, config.JWT.REFRESH_TOKEN);
+    return jwt.verify(token, config.JWT.REFRESH_SECRET);
   } catch (error) {
-    if (error.name === "TokenExpiredError") {
-      throw new Error("Access token expired");
+    if (error.name === 'TokenExpiredError') {
+      throw new Error('Refresh token expired');
     }
-    if (error.name === "JsonWebTokenError") {
-      throw new Error("Invalid access token");
+    if (error.name === 'JsonWebTokenError') {
+      throw new Error('Invalid refresh token');
     }
     throw error;
   }
 };
 
+
 const revokeAllUserTokens = async (userId) => {
-  await RefershToken.updateMany(
+  await RefreshToken.updateMany(
     { userId, isRevoked: false },
     { isRevoked: true }
   );
 };
 
+
 const revokeRefreshToken = async (token) => {
-  const refreshToken = await RefershToken.findOne({ token });
+  const refreshToken = await RefreshToken.findOne({ token });
   if (refreshToken) {
     await refreshToken.revoke();
   }
@@ -80,5 +90,5 @@ module.exports = {
   verifyAccessToken,
   verifyRefreshToken,
   revokeAllUserTokens,
-  revokeRefreshToken,
+  revokeRefreshToken
 };
