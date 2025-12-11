@@ -241,7 +241,7 @@ Contributions, issues, and feature requests are welcome!
 
 **Rugved Agasti**
 
-- GitHub: [@rugved__03](https://github.com/rugved__03)
+- GitHub: [@Rugved7](https://github.com/Rugved7)
 - npm: [@rugved__03](https://www.npmjs.com/~rugved__03)
 
 ---
