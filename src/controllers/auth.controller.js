@@ -9,7 +9,6 @@ const {
 } = require("../utils/tokenUtils");
 const { ApiError, asyncHandler } = require("../utils/errorHandler");
 const config = require("../config/env");
-const { useReducer } = require("react");
 
 // Signup Endpoint
 const signup = asyncHandler(async (req, res) => {
@@ -102,3 +101,95 @@ const login = asyncHandler(async (req, res) => {
     },
   });
 });
+
+// Refresh-AccessToken
+const refreshAccessToken = asyncHandler(async (req, res) => {
+  const { refreshToken } = req.cookies;
+
+  if (!refreshToken) {
+    throw new ApiError(401, "Refresh Token not found");
+  }
+
+  const decoded = verifyRefreshToken(refreshToken);
+
+  const tokenDoc = await RefreshToken.findValidToken(refreshToken);
+  if (!tokenDoc) {
+    throw new ApiError(401, "Invalid or expired refresh token");
+  }
+
+  const newAccessToken = generateAccessToken({
+    userId: decoded.userId,
+    email: tokenDoc.userId.email,
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "Access token refreshed successfully",
+    data: {
+      accessToken: newAccessToken,
+    },
+  });
+});
+
+// Logout Endpoint
+const logout = asyncHandler(async (req, res) => {
+  const { refreshToken } = req.cookies;
+
+  if (refreshToken) {
+    // Revoke refresh token from database
+    await revokeRefreshToken(refreshToken);
+  }
+
+  // Clear refresh token cookie
+  res.clearCookie('refreshToken', {
+    httpOnly: config.COOKIE.HTTP_ONLY,
+    secure: config.COOKIE.SECURE,
+    sameSite: config.COOKIE.SAME_SITE
+  });
+
+  res.status(200).json({
+    success: true,
+    message: 'Logout successful'
+  });
+});
+
+/**
+ * @route   POST /api/auth/logout-all
+ * @desc    Logout user from all devices
+ * @access  Protected (requires valid access token)
+ */
+const logoutAll = asyncHandler(async (req, res) => {
+  // Revoke all refresh tokens for the user
+  await revokeAllUserTokens(req.user._id);
+
+  // Clear refresh token cookie
+  res.clearCookie('refreshToken', {
+    httpOnly: config.COOKIE.HTTP_ONLY,
+    secure: config.COOKIE.SECURE,
+    sameSite: config.COOKIE.SAME_SITE
+  });
+
+  res.status(200).json({
+    success: true,
+    message: 'Logged out from all devices successfully'
+  });
+});
+
+
+const getCurrentUser = asyncHandler(async (req, res) => {
+  res.status(200).json({
+    success: true,
+    data: {
+      user: req.user
+    }
+  });
+});
+
+module.exports = {
+  signup,
+  login,
+  refreshAccessToken,
+  logout,
+  logoutAll,
+  getCurrentUser
+};
